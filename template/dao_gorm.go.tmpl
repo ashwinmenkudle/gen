@@ -4,15 +4,16 @@ import (
     "context"
     "time"
 
+    "github.com/a8m/rql"
 	"{{.modelFQPN}}"
 
-    {{if .UseGuregu}} "github.com/guregu/null" {{end}}
-    "github.com/satori/go.uuid"
+    "github.com/guregu/null"
+    uuid "github.com/satori/go.uuid"
 )
 
 var (
     _ = time.Second
-    {{if .UseGuregu}} _ = null.Bool{} {{end}}
+    _ = null.Bool{}
     _ = uuid.UUID{}
 )
 
@@ -20,7 +21,4 @@ var (
 
 {{template "dao_gorm_getall.go.tmpl" .}}
 {{template "dao_gorm_get.go.tmpl" .}}
-{{template "dao_gorm_add.go.tmpl" .}}
-{{template "dao_gorm_update.go.tmpl" .}}
-{{template "dao_gorm_delete.go.tmpl" .}}
 

@@ -528,12 +528,18 @@ func generate(conf *dbmeta.Config) error {
 	var ModelTmpl *dbmeta.GenTemplate
 	var ModelBaseTmpl *dbmeta.GenTemplate
 	var ControllerTmpl *dbmeta.GenTemplate
+	var RepresentationsTmpl *dbmeta.GenTemplate
 	var DaoTmpl *dbmeta.GenTemplate
 
 	var DaoInitTmpl *dbmeta.GenTemplate
 	var GoModuleTmpl *dbmeta.GenTemplate
 
 	if ControllerTmpl, err = LoadTemplate("api.go.tmpl"); err != nil {
+		fmt.Print(au.Red(fmt.Sprintf("Error loading template %v\n", err)))
+		return err
+	}
+
+	if RepresentationsTmpl, err = LoadTemplate("representations.go.tmpl"); err != nil {
 		fmt.Print(au.Red(fmt.Sprintf("Error loading template %v\n", err)))
 		return err
 	}
@@ -596,6 +602,14 @@ func generate(conf *dbmeta.Config) error {
 		}
 
 		if *restAPIGenerate {
+
+			representationsFile := filepath.Join(apiDir, CreateGoSrcFileName(tableName))
+			err = conf.WriteTemplate(RepresentationsTmpl, modelInfo, representationsFile)
+			if err != nil {
+				fmt.Print(au.Red(fmt.Sprintf("Error writing file: %v\n", err)))
+				os.Exit(1)
+			}
+
 			restFile := filepath.Join(apiDir, CreateGoSrcFileName(tableName))
 			err = conf.WriteTemplate(ControllerTmpl, modelInfo, restFile)
 			if err != nil {

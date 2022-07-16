@@ -4,22 +4,22 @@
 // params - pagesize - number of records in a page  (defaults to 20)
 // params - order    - db sort order column
 // error - ErrNotFound, db Find error
-func GetAll{{.StructName}}(ctx context.Context, page, pagesize int, order string) (results []*{{.modelPackageName}}.{{.StructName}}, totalRows int64, err error) {
+func GetAll{{.StructName}}(ctx context.Context, p *rql.Params) (results []*{{.modelPackageName}}.{{.StructName}}, totalRows int, err error) {
 
 	resultOrm := DB.Model(&{{.modelPackageName}}.{{.StructName}}{})
+	resultOrm = resultOrm.Where(p.FilterExp, p.FilterArgs)
     resultOrm.Count(&totalRows)
 
-	if page > 0 {
-		offset := (page - 1) * pagesize
-		resultOrm = resultOrm.Offset(offset).Limit(pagesize)
+	if p.Offset > 0 {
+		resultOrm = resultOrm.Offset(p.Offset).Limit(p.Limit)
 	} else {
-		resultOrm = resultOrm.Limit(pagesize)
-    }
-
-	if order != "" {
-		resultOrm = resultOrm.Order(order)
+		resultOrm = resultOrm.Limit(p.Limit)
 	}
 
+	if p.Sort != "" {
+		resultOrm = resultOrm.Order(p.Sort)
+	}
+	
 	if err = resultOrm.Find(&results).Error; err != nil {
 	    err = ErrNotFound
 		return nil, -1, err

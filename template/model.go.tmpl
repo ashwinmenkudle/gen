@@ -9,25 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-/*
-DB Table Details
--------------------------------------
-{{ $ddl := .TableInfo.DBMeta.DDL }}
-{{if $ddl }}
-{{$ddl}}
-{{- end}}
 
-JSON Sample
--------------------------------------
-{{ToJSON .TableInfo.Instance 4}}
-
-{{if .TableInfo.Notes }}
-Comments
--------------------------------------
-{{ .TableInfo.Notes}}
-{{end}}
-
-*/
 
  {{if not .Config.AddProtobufAnnotation }}
 
@@ -52,7 +34,7 @@ var {{.TableName}}TableInfo = &TableInfo {
 	Name: "{{.TableName}}",
 	Columns: []*ColumnInfo{
         {{range .TableInfo.CodeFields}}
-        &ColumnInfo{
+        {
         	Index: {{.ColumnMeta.Index}},
         	Name: "{{.ColumnMeta.Name}}",
         	Comment: `{{.ColumnMeta.Comment}}`,
@@ -84,7 +66,7 @@ func ({{.ShortStructName}} *{{.StructName}}) TableName() string {
 }
 
 // BeforeSave invoked before saving, return an error if field is not populated.
-func ({{.ShortStructName}} *{{.StructName}}) BeforeSave(tx *gorm.DB) error {
+func ({{.ShortStructName}} *{{.StructName}}) BeforeSave() error {
 	return nil
 }
 

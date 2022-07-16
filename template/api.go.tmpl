@@ -1,34 +1,107 @@
 package {{.apiPackageName}}
 
 import (
+	"encoding/base64"
+	"fmt"
+	"io"
+	"io/ioutil"
 	"net/http"
 
+	"github.com/a8m/rql"
 	"{{.modelFQPN}}"
     "{{.daoFQPN}}"
 
 	"github.com/gin-gonic/gin"
-	{{if .UseGuregu}} "github.com/guregu/null" {{end}}
+	"github.com/google/go-querystring/query"
+	"github.com/guregu/null"
 	"github.com/julienschmidt/httprouter"
 )
 
+var (
+    _ = null.Bool{}
+	// {{.StructName}}QueryParser panics if the configuration is invalid.
+	{{.StructName}}QueryParser = rql.MustNewParser(rql.Config{
+		Model:    {{.modelPackageName}}.{{.StructName}}{},
+		FieldSep: ".",
+		ColumnFn: toSnakeCase,
+		// Default limit returned by the `Parse` function if no limit provided by the user.
+		DefaultLimit: 20,
+	})
+)
+
+// get{{.StructName}}Query extract the query blob from either the body or the query string
+// and execute the parser.
+func get{{.StructName}}Query(r *http.Request) (*rql.Params, map[string]Link, error) {
+	var (
+		b   []byte
+		err error
+		p   *rql.Params
+	)
+
+	if v := r.URL.Query().Get(QueryParam); v != "" {
+		b, err = base64.StdEncoding.DecodeString(v)
+	} else {
+		b, err = ioutil.ReadAll(io.LimitReader(r.Body, 1<<12))
+	}
+	if err != nil {
+		return nil, nil, err
+	}
+	if len(b) > 0 {
+		p, err = {{.StructName}}QueryParser.Parse(b)
+		if err != nil {
+			return nil, nil, err
+		}
+	} else {
+		p = &rql.Params{
+			Limit: 20,
+		}
+	}
+
+	page, err := queryOverrides(r, p)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	links := map[string]Link{}
+	if page > 1 {
+		opt := URLPageOptions{
+			Query: string(b),
+			Page:  page - 1,
+			Size:  p.Limit,
+		}
+		v, _ := query.Values(opt)
+		links["previous"] = Link{
+			URL:         fmt.Sprintf("%s?%s", r.URL.Path, v.Encode()),
+			Method:      "GET",
+			ContentType: "application/json",
+		}
+	}
+	opt := URLPageOptions{
+		Query: string(b),
+		Page:  page + 1,
+		Size:  p.Limit,
+	}
+	v, _ := query.Values(opt)
+	links["next"] = Link{
+		URL:         fmt.Sprintf("%s?%s", r.URL.Path, v.Encode()),
+		Method:      "GET",
+		ContentType: "application/json",
+	}
+
+	return p, links, nil
+}
+
 func config{{.StructName}}Router(router *httprouter.Router) {
 	router.GET("/{{.StructName | toLower}}", GetAll{{.StructName}})
-	router.POST("/{{.StructName | toLower}}", Add{{.StructName}})
+	router.POST("/{{.StructName | toLower}}"/search, GetAll{{.StructName}})
 	router.GET("/{{.StructName | toLower}}{{range $field := .TableInfo.CodeFields}}{{ if $field.PrimaryKeyArgName}}/:{{$field.PrimaryKeyArgName}}{{end}}{{end -}}", Get{{.StructName}})
-	router.PUT("/{{.StructName | toLower}}{{range $field := .TableInfo.CodeFields}}{{ if $field.PrimaryKeyArgName}}/:{{$field.PrimaryKeyArgName}}{{end}}{{end -}}", Update{{.StructName}})
-	router.DELETE("/{{.StructName | toLower}}{{range $field := .TableInfo.CodeFields}}{{ if $field.PrimaryKeyArgName}}/:{{$field.PrimaryKeyArgName}}{{end}}{{end -}}", Delete{{.StructName}})
 }
 
 func configGin{{.StructName}}Router(router gin.IRoutes) {
 	router.GET("/{{.StructName | toLower}}", ConverHttprouterToGin(GetAll{{.StructName}}))
-	router.POST("/{{.StructName | toLower}}", ConverHttprouterToGin(Add{{.StructName}}))
+	router.POST("/{{.StructName | toLower}}/search", ConverHttprouterToGin(GetAll{{.StructName}}))
 	router.GET("/{{.StructName | toLower}}{{range $field := .TableInfo.CodeFields}}{{ if $field.PrimaryKeyArgName}}/:{{$field.PrimaryKeyArgName}}{{end}}{{end -}}", ConverHttprouterToGin(Get{{.StructName}}))
-	router.PUT("/{{.StructName | toLower}}{{range $field := .TableInfo.CodeFields}}{{ if $field.PrimaryKeyArgName}}/:{{$field.PrimaryKeyArgName}}{{end}}{{end -}}", ConverHttprouterToGin(Update{{.StructName}}))
-	router.DELETE("/{{.StructName | toLower}}{{range $field := .TableInfo.CodeFields}}{{ if $field.PrimaryKeyArgName}}/:{{$field.PrimaryKeyArgName}}{{end}}{{end -}}", ConverHttprouterToGin(Delete{{.StructName}}))
 }
 
 {{template "api_getall.go.tmpl" .}}
 {{template "api_get.go.tmpl" .}}
-{{template "api_add.go.tmpl" .}}
-{{template "api_update.go.tmpl" .}}
-{{template "api_delete.go.tmpl" .}}

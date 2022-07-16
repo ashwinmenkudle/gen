@@ -362,6 +362,8 @@ func (c *Config) GenerateFieldsTypes(dbMeta DbTableMeta) ([]*FieldInfo, error) {
 			annotations = append(annotations, fi.DBAnnotation)
 		}
 
+		annotations = append(annotations, `rql:"filter,sort"`)
+
 		gogoTags := []string{fi.GormAnnotation, fi.JSONAnnotation, fi.XMLAnnotation, fi.DBAnnotation}
 		GoGoMoreTags := strings.Join(gogoTags, " ")
 

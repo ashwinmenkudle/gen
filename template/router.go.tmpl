@@ -7,9 +7,13 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"regexp"
 	"strconv"
+	"strings"
 	"time"
 	"unsafe"
+
+	"github.com/a8m/rql"
 	_ "github.com/satori/go.uuid"
 
 	"{{.daoFQPN}}"
@@ -20,6 +24,12 @@ import (
 )
 
 var crudEndpoints map[string]*CrudAPI
+var (
+    _ = time.Second // import time.Second for unknown usage in api
+	crudEndpoints map[string]*CrudAPI
+	// QueryParam is the name of the query string key.
+	QueryParam = "query"
+)
 
 // CrudAPI describes requests available for tables in the database
 type CrudAPI struct {
@@ -33,13 +43,24 @@ type CrudAPI struct {
 	TableInfo       *{{.modelPackageName}}.TableInfo {{ .Config.JSONTag "table_info" }}
 }
 
+type URLPageOptions struct {
+	Query string `url:"query,omitempty"`
+	Page  int    `url:"page"`
+	Size  int    `url:"size"`
+}
+
+type Link struct {
+	URL         string 	{{ .Config.JSONTag "url" }}
+	Method      string 	{{ .Config.JSONTag "method" }}
+	ContentType string 	{{ .Config.JSONTagOmitEmpty "content_type" }}
+	Accept      string 	{{ .Config.JSONTagOmitEmpty "accept" }}
+}
 
 // PagedResults results for pages GetAll results.
-type PagedResults struct {
-	Page         int64       {{ .Config.JSONTag "page" }}
-	PageSize     int64       {{ .Config.JSONTag "page_size" }}
-	Data         interface{} {{ .Config.JSONTag "data" }}
-    TotalRecords int         {{ .Config.JSONTag "total_records" }}
+type PagedResults[T any] struct {
+	Data         []*T 		 		{{ .Config.JSONTag "data" }}
+    Count 		 int         		{{ .Config.JSONTag "count" }}
+	Links        map[string]Link 	{{ .Config.JSONTag "links" }}
 }
 
 // HTTPError example
@@ -116,13 +137,13 @@ var ContextInitializer ContextInitializerFunc
 
 
 
-func readInt(r *http.Request, param string, v int64) (int64, error) {
+func readInt(r *http.Request, param string, v int) (int, error) {
 	p := r.FormValue(param)
 	if p == "" {
 		return v, nil
 	}
 
-	return strconv.ParseInt(p, 10, 64)
+	return strconv.Atoi(p)
 }
 
 func writeJSON(ctx context.Context, w http.ResponseWriter, v interface{}) {
@@ -353,4 +374,34 @@ func init() {
 	{{end}}
 }
 
+func queryOverrides(r *http.Request, p *rql.Params) (int, error) {
+	pagesize, err := readInt(r, "size", 20)
+	if err != nil || pagesize <= 0 {
+		return 0, err
+	}
+	p.Limit = pagesize
 
+	page, err := readInt(r, "page", 0)
+	if err != nil || page < 0 {
+		return 0, err
+	}
+
+	if page > 0 {
+		p.Offset = (page - 1) * pagesize
+	} else {
+		x := p.Offset / pagesize
+		page = int(x) + 1
+	}
+
+	if sort := r.FormValue("sort"); len(sort) > 0 {
+		p.Sort = toSnakeCase(sort)
+	}
+	return page, nil
+}
+
+var matchAllCap = regexp.MustCompile("([a-z0-9])([A-Z])")
+
+func toSnakeCase(s string) string {
+	snake := matchAllCap.ReplaceAllString(s, "${1}_${2}")
+	return strings.ToLower(snake)
+}

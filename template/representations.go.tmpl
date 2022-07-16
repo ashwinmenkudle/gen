@@ -1,0 +1,8 @@
+package representations
+
+type {{.StructName}} struct {
+	{{range .TableInfo.CodeFields}}
+    {{$jsonName := FmtFieldName .ColumnMeta.Name -}}
+    {{toUpperCamelCase .ColumnMeta.Name}} string `json:"{{ toLowerCamelCase $jsonName}}"`
+    {{end}}
+}
