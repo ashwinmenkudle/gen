@@ -93,7 +93,7 @@ func get{{.StructName}}Query(r *http.Request) (*rql.Params, map[string]Link, err
 
 func config{{.StructName}}Router(router *httprouter.Router) {
 	router.GET("/{{.StructName | toLower}}", GetAll{{.StructName}})
-	router.POST("/{{.StructName | toLower}}"/search, GetAll{{.StructName}})
+	router.POST("/{{.StructName | toLower}}/search", GetAll{{.StructName}})
 	router.GET("/{{.StructName | toLower}}{{range $field := .TableInfo.CodeFields}}{{ if $field.PrimaryKeyArgName}}/:{{$field.PrimaryKeyArgName}}{{end}}{{end -}}", Get{{.StructName}})
 }
 
