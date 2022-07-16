@@ -372,6 +372,8 @@ func initialize(conf *dbmeta.Config) {
 	conf.Module = *module
 	conf.ModelPackageName = *modelPackageName
 	conf.ModelFQPN = *module + "/" + *modelPackageName
+	conf.RepsPackageName = "representations"
+	conf.RepresentationsFQPN = *module + "/" + "representations"
 
 	conf.DaoPackageName = *daoPackageName
 	conf.DaoFQPN = *module + "/" + *daoPackageName
@@ -497,6 +499,7 @@ func generate(conf *dbmeta.Config) error {
 	modelDir := filepath.Join(*outDir, *modelPackageName)
 	apiDir := filepath.Join(*outDir, *apiPackageName)
 	representationsDir := filepath.Join(*outDir, "representations")
+	mappersDir := filepath.Join(*outDir, "mapper")
 	daoDir := filepath.Join(*outDir, *daoPackageName)
 
 	err = os.MkdirAll(*outDir, 0777)
@@ -522,7 +525,12 @@ func generate(conf *dbmeta.Config) error {
 	if *restAPIGenerate {
 		err = os.MkdirAll(representationsDir, 0777)
 		if err != nil && !*overwrite {
-			fmt.Print(au.Red(fmt.Sprintf("unable to create apiDir: %s error: %v\n", apiDir, err)))
+			fmt.Print(au.Red(fmt.Sprintf("unable to create apiDir: %s error: %v\n", representationsDir, err)))
+			return err
+		}
+		err = os.MkdirAll(mappersDir, 0777)
+		if err != nil && !*overwrite {
+			fmt.Print(au.Red(fmt.Sprintf("unable to create apiDir: %s error: %v\n", mappersDir, err)))
 			return err
 		}
 		err = os.MkdirAll(apiDir, 0777)
@@ -535,6 +543,7 @@ func generate(conf *dbmeta.Config) error {
 	var ModelBaseTmpl *dbmeta.GenTemplate
 	var ControllerTmpl *dbmeta.GenTemplate
 	var RepresentationsTmpl *dbmeta.GenTemplate
+	var MappersTmpl *dbmeta.GenTemplate
 	var DaoTmpl *dbmeta.GenTemplate
 
 	var DaoInitTmpl *dbmeta.GenTemplate
@@ -546,6 +555,11 @@ func generate(conf *dbmeta.Config) error {
 	}
 
 	if RepresentationsTmpl, err = LoadTemplate("representations.go.tmpl"); err != nil {
+		fmt.Print(au.Red(fmt.Sprintf("Error loading template %v\n", err)))
+		return err
+	}
+
+	if MappersTmpl, err = LoadTemplate("api_mappers.go.tmpl"); err != nil {
 		fmt.Print(au.Red(fmt.Sprintf("Error loading template %v\n", err)))
 		return err
 	}
@@ -611,6 +625,13 @@ func generate(conf *dbmeta.Config) error {
 
 			representationsFile := filepath.Join(representationsDir, CreateGoSrcFileName(tableName))
 			err = conf.WriteTemplate(RepresentationsTmpl, modelInfo, representationsFile)
+			if err != nil {
+				fmt.Print(au.Red(fmt.Sprintf("Error writing file: %v\n", err)))
+				os.Exit(1)
+			}
+
+			mappersFile := filepath.Join(mappersDir, CreateGoSrcFileName(tableName))
+			err = conf.WriteTemplate(MappersTmpl, modelInfo, mappersFile)
 			if err != nil {
 				fmt.Print(au.Red(fmt.Sprintf("Error writing file: %v\n", err)))
 				os.Exit(1)

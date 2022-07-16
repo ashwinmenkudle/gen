@@ -1,0 +1,24 @@
+{{define "api_mappers.go.tmpl"}}
+package mapper
+
+import (
+	"{{.modelFQPN}}"
+    "{{.representationsFQPN}}"
+)
+
+func To{{.StructName}}Rep(m {{.modelPackageName}}.{{.StructName}}) {{.repsPackageName}}.{{.StructName}} {
+	return {{.repsPackageName}}.{{.StructName}}{
+        {{range .TableInfo.CodeFields}}
+            {{if .ColumnMeta.Nullable}}
+                {{if eq .JSONFieldType "bool"}}
+                    {{.GoFieldName}}: m.{{.GoFieldName}}.IsZero(),
+                {{else}}
+                    {{.GoFieldName}}: m.{{.GoFieldName}}.ValueOrZero(),
+                {{end}}
+            {{else}}
+                {{.GoFieldName}}: m.{{.GoFieldName}},
+            {{end}}
+        {{end}}
+	}
+}
+{{end}}
