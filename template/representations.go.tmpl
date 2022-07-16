@@ -1,8 +1,17 @@
+{{define "representations.go.tmpl"}}
 package representations
 
 type {{.StructName}} struct {
 	{{range .TableInfo.CodeFields}}
-    {{$jsonName := FmtFieldName .ColumnMeta.Name -}}
-    {{toUpperCamelCase .ColumnMeta.Name}} string `json:"{{ toLowerCamelCase $jsonName}}"`
+    {{if eq .JSONFieldType "bool"}}
+    {{.GoFieldName}} {{.JSONFieldType}} `{{ .JSONAnnotation }}`
+    {{else if eq .JSONFieldType "float64"}}
+    {{.GoFieldName}} {{.JSONFieldType}} `{{ .JSONAnnotation }}`
+    {{else if eq .JSONFieldType "int64"}}
+    {{.GoFieldName}} {{.JSONFieldType}} `{{ .JSONAnnotation }}`
+    {{else }}
+    {{.GoFieldName}} {{.JSONFieldType}} {{ JSONTagOmitEmpty .JSONFieldName }}
+    {{end}}
     {{end}}
 }
+{{end}}

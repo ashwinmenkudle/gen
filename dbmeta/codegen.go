@@ -95,6 +95,8 @@ func (c *Config) GetTemplate(genTemplate *GenTemplate) (*template.Template, erro
 		"ReplaceFileNamingTemplate":  c.ReplaceFileNamingTemplate,
 		"ReplaceModelNamingTemplate": c.ReplaceModelNamingTemplate,
 		"ReplaceFieldNamingTemplate": c.ReplaceFieldNamingTemplate,
+		"JSONTagOmitEmpty":           c.JSONTagOmitEmpty,
+		"JSONTag":                    c.JSONTag,
 		"stringifyFirstChar":         stringifyFirstChar,
 		"singular":                   inflection.Singular,
 		"pluralize":                  inflection.Plural,
@@ -596,7 +598,7 @@ func (c *Config) WriteTemplate(genTemplate *GenTemplate, data map[string]interfa
 
 	fileContents, err := c.format(genTemplate, buf.Bytes(), outputFile)
 	if err != nil {
-		return fmt.Errorf("error writing %s - error: %v", outputFile, err)
+		return fmt.Errorf("error writing %s - error: %v content:%s", outputFile, err, buf.Bytes())
 	}
 
 	err = ioutil.WriteFile(outputFile, fileContents, 0777)

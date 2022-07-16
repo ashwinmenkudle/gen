@@ -280,6 +280,7 @@ type FieldInfo struct {
 	Index                 int
 	GoFieldName           string
 	GoFieldType           string
+	JSONFieldType         string
 	GoAnnotations         []string
 	JSONFieldName         string
 	ProtobufFieldName     string
@@ -332,6 +333,12 @@ func (c *Config) GenerateFieldsTypes(dbMeta DbTableMeta) ([]*FieldInfo, error) {
 		}
 
 		valueType, err := SQLTypeToGoType(strings.ToLower(col.DatabaseTypeName()), col.Nullable(), c.UseGureguTypes)
+		if err != nil { // unknown type
+			fmt.Printf("table: %s unable to generate struct field: %s type: %s error: %v\n", dbMeta.TableName(), fieldName, col.DatabaseTypeName(), err)
+			continue
+		}
+
+		jsonValueType, err := SQLTypeToGoType(strings.ToLower(col.DatabaseTypeName()), false, false)
 		if err != nil { // unknown type
 			fmt.Printf("table: %s unable to generate struct field: %s type: %s error: %v\n", dbMeta.TableName(), fieldName, col.DatabaseTypeName(), err)
 			continue
@@ -413,6 +420,7 @@ func (c *Config) GenerateFieldsTypes(dbMeta DbTableMeta) ([]*FieldInfo, error) {
 
 		fi.Code = field
 		fi.GoFieldName = fieldName
+		fi.JSONFieldType = jsonValueType
 		fi.GoFieldType = valueType
 		fi.GoAnnotations = annotations
 		fi.FakeData = fakeData

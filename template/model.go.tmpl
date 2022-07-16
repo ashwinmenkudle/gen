@@ -1,15 +1,12 @@
 package {{.modelPackageName}}
 
 import (
-    "database/sql"
-    "time"
-
-    "github.com/satori/go.uuid"
     {{if .UseGuregu}} "github.com/guregu/null" {{end}}
-	"github.com/jinzhu/gorm"
 )
 
-
+var (
+	{{if .UseGuregu}}_ = null.Bool{} {{end}}
+)
 
  {{if not .Config.AddProtobufAnnotation }}
 

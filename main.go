@@ -496,6 +496,7 @@ func generate(conf *dbmeta.Config) error {
 	*xmlNameFormat = strings.ToLower(*xmlNameFormat)
 	modelDir := filepath.Join(*outDir, *modelPackageName)
 	apiDir := filepath.Join(*outDir, *apiPackageName)
+	representationsDir := filepath.Join(*outDir, "representations")
 	daoDir := filepath.Join(*outDir, *daoPackageName)
 
 	err = os.MkdirAll(*outDir, 0777)
@@ -519,6 +520,11 @@ func generate(conf *dbmeta.Config) error {
 	}
 
 	if *restAPIGenerate {
+		err = os.MkdirAll(representationsDir, 0777)
+		if err != nil && !*overwrite {
+			fmt.Print(au.Red(fmt.Sprintf("unable to create apiDir: %s error: %v\n", apiDir, err)))
+			return err
+		}
 		err = os.MkdirAll(apiDir, 0777)
 		if err != nil && !*overwrite {
 			fmt.Print(au.Red(fmt.Sprintf("unable to create apiDir: %s error: %v\n", apiDir, err)))
@@ -603,7 +609,7 @@ func generate(conf *dbmeta.Config) error {
 
 		if *restAPIGenerate {
 
-			representationsFile := filepath.Join(apiDir, CreateGoSrcFileName(tableName))
+			representationsFile := filepath.Join(representationsDir, CreateGoSrcFileName(tableName))
 			err = conf.WriteTemplate(RepresentationsTmpl, modelInfo, representationsFile)
 			if err != nil {
 				fmt.Print(au.Red(fmt.Sprintf("Error writing file: %v\n", err)))
