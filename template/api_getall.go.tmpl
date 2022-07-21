@@ -28,11 +28,16 @@ func GetAll{{.StructName}}(w http.ResponseWriter, r *http.Request, ps httprouter
 		return
 	}
 
-	if !(totalRows > p.Offset+p.Limit) {
+	resps := make([]{{.repsPackageName}}.{{.StructName}}, 0, len(records))
+	for _, r := range records {
+		resps = append(resps, mapper.To{{.StructName}}Rep(*r))
+	}
+
+	if !(totalRows > int64(p.Offset)+int64(p.Limit)) {
 		delete(links, "next")
 	}
 
-	result := &PagedResults[{{.modelPackageName}}.{{.StructName}}]{Data: records, Count: totalRows, Links: links}
+	result := &PagedResults[{{.repsPackageName}}.{{.StructName}}]{Data: resps, Count: totalRows, Links: links}
 	writeJSON(ctx, w, result)
 }
 {{end}}

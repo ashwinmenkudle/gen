@@ -11,9 +11,13 @@ func To{{.StructName}}Rep(m {{.modelPackageName}}.{{.StructName}}) {{.repsPackag
         {{range .TableInfo.CodeFields}}
             {{if .ColumnMeta.Nullable}}
                 {{if eq .JSONFieldType "bool"}}
-                    {{.GoFieldName}}: m.{{.GoFieldName}}.IsZero(),
-                {{else}}
-                    {{.GoFieldName}}: m.{{.GoFieldName}}.ValueOrZero(),
+                    {{.GoFieldName}}: m.{{.GoFieldName}}.Bool,
+                {{end}}
+                {{if eq .JSONFieldType "string"}}
+                    {{.GoFieldName}}: m.{{.GoFieldName}}.String,
+                {{end}}
+                {{if eq .JSONFieldType "float64"}}
+                    {{.GoFieldName}}: m.{{.GoFieldName}}.Float64,
                 {{end}}
             {{else}}
                 {{.GoFieldName}}: m.{{.GoFieldName}},

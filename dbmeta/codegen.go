@@ -568,6 +568,8 @@ func (c *Config) WriteTemplate(genTemplate *GenTemplate, data map[string]interfa
 	data["modelFQPN"] = c.ModelFQPN
 	data["modelPackageName"] = c.ModelPackageName
 
+	data["mapperFQPN"] = c.MapperFQPN
+
 	data["representationsFQPN"] = c.RepresentationsFQPN
 	data["repsPackageName"] = c.RepsPackageName
 
@@ -893,6 +895,7 @@ type Config struct {
 	ModelFQPN             string
 	RepsPackageName       string
 	RepresentationsFQPN   string
+	MapperFQPN            string
 	AddJSONAnnotation     bool
 	AddGormAnnotation     bool
 	AddProtobufAnnotation bool

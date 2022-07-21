@@ -1,11 +1,13 @@
 package {{.modelPackageName}}
 
 import (
+	"database/sql"
     {{if .UseGuregu}} "github.com/guregu/null" {{end}}
 )
 
 var (
 	{{if .UseGuregu}}_ = null.Bool{} {{end}}
+	_ = sql.NullString{}
 )
 
  {{if not .Config.AddProtobufAnnotation }}

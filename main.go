@@ -375,6 +375,8 @@ func initialize(conf *dbmeta.Config) {
 	conf.RepsPackageName = "representations"
 	conf.RepresentationsFQPN = *module + "/" + "representations"
 
+	conf.MapperFQPN = *module + "/" + "mapper"
+
 	conf.DaoPackageName = *daoPackageName
 	conf.DaoFQPN = *module + "/" + *daoPackageName
 
