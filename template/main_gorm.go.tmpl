@@ -20,9 +20,11 @@ import (
 	"gorm.io/gorm"
 
 	"{{.module}}/{{.apiPackageName}}"
+	"{{.module}}/config"
     "{{.module}}/{{.daoPackageName}}"
     _ "{{.module}}/docs"
     "{{.module}}/{{.modelPackageName}}"
+	"{{.module}}/pglistener"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm/logger"
 	"gorm.io/gorm/schema"
@@ -96,14 +98,16 @@ func main() {
   Built on OS     : %s
 `, BuildDate, BuildNumber, LatestCommit, RuntimeVer, BuiltOnOs)
 	goopt.Parse(nil)
-
+	graphSchema := config.ViperEnvVariable("GRAPH_SCHEMA")
+	dsn := `{{.sqlConnStr}}`
 	db, err := gorm.Open(postgres.New(postgres.Config{
-		DSN:                  `{{.sqlConnStr}}`,
+		DSN:                  dsn + " search_path=" + graphSchema,
 		PreferSimpleProtocol: true,
 	}), &gorm.Config{
-		Logger: logger.Default.LogMode(logger.Info),
+		Logger:                                   logger.Default.LogMode(logger.Info),
+		DisableForeignKeyConstraintWhenMigrating: true,
 		NamingStrategy: schema.NamingStrategy{
-			TablePrefix:   "sgd24.", // schema name
+			TablePrefix:   graphSchema + ".", // schema name
 			SingularTable: false,
 		}})
 	if err != nil {
@@ -122,6 +126,7 @@ func main() {
 	}
 
 	go GinServer()
+	go pglistener.Start(dsn, graphSchema)
     LoopForever()
 }
 

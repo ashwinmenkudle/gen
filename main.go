@@ -502,6 +502,8 @@ func generate(conf *dbmeta.Config) error {
 	apiDir := filepath.Join(*outDir, *apiPackageName)
 	representationsDir := filepath.Join(*outDir, "representations")
 	mappersDir := filepath.Join(*outDir, "mapper")
+	configDir := filepath.Join(*outDir, "config")
+	pglistenerDir := filepath.Join(*outDir, "pglistener")
 	daoDir := filepath.Join(*outDir, *daoPackageName)
 
 	err = os.MkdirAll(*outDir, 0777)
@@ -522,6 +524,18 @@ func generate(conf *dbmeta.Config) error {
 			fmt.Print(au.Red(fmt.Sprintf("unable to create daoDir: %s error: %v\n", daoDir, err)))
 			return err
 		}
+	}
+
+	err = os.MkdirAll(configDir, 0777)
+	if err != nil && !*overwrite {
+		fmt.Print(au.Red(fmt.Sprintf("unable to create apiDir: %s error: %v\n", configDir, err)))
+		return err
+	}
+
+	err = os.MkdirAll(pglistenerDir, 0777)
+	if err != nil && !*overwrite {
+		fmt.Print(au.Red(fmt.Sprintf("unable to create apiDir: %s error: %v\n", configDir, err)))
+		return err
 	}
 
 	if *restAPIGenerate {
@@ -550,6 +564,8 @@ func generate(conf *dbmeta.Config) error {
 
 	var DaoInitTmpl *dbmeta.GenTemplate
 	var GoModuleTmpl *dbmeta.GenTemplate
+	var ConfigTmpl *dbmeta.GenTemplate
+	var PGListnerTmpl *dbmeta.GenTemplate
 
 	if ControllerTmpl, err = LoadTemplate("api.go.tmpl"); err != nil {
 		fmt.Print(au.Red(fmt.Sprintf("Error loading template %v\n", err)))
@@ -587,6 +603,16 @@ func generate(conf *dbmeta.Config) error {
 	}
 
 	if GoModuleTmpl, err = LoadTemplate("gomod.tmpl"); err != nil {
+		fmt.Print(au.Red(fmt.Sprintf("Error loading template %v\n", err)))
+		return err
+	}
+
+	if ConfigTmpl, err = LoadTemplate("config.go.tmpl"); err != nil {
+		fmt.Print(au.Red(fmt.Sprintf("Error loading template %v\n", err)))
+		return err
+	}
+
+	if PGListnerTmpl, err = LoadTemplate("pglistener.tmpl"); err != nil {
 		fmt.Print(au.Red(fmt.Sprintf("Error loading template %v\n", err)))
 		return err
 	}
@@ -687,6 +713,18 @@ func generate(conf *dbmeta.Config) error {
 			fmt.Print(au.Red(fmt.Sprintf("Error writing file: %v\n", err)))
 			os.Exit(1)
 		}
+	}
+
+	err = conf.WriteTemplate(ConfigTmpl, data, filepath.Join(configDir, "config.go"))
+	if err != nil {
+		fmt.Print(au.Red(fmt.Sprintf("Error writing file: %v\n", err)))
+		os.Exit(1)
+	}
+
+	err = conf.WriteTemplate(PGListnerTmpl, data, filepath.Join(pglistenerDir, "pglistener.go"))
+	if err != nil {
+		fmt.Print(au.Red(fmt.Sprintf("Error writing file: %v\n", err)))
+		os.Exit(1)
 	}
 
 	if *makefileGenerate {

@@ -1,0 +1,140 @@
+{{define "pglistener.go.tmpl"}}
+package pglistener
+
+import (
+	"bytes"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"log"
+	"time"
+
+	"github.com/lib/pq"
+)
+
+type DBEvent struct {
+	Table  string `json:"table"`
+	Action string `json:"UPDATE"`
+}
+
+var (
+	db *sql.DB
+)
+
+func cleanUpTableDuplicates(tableName string, schema string) {
+	_, err := db.Exec(fmt.Sprintf(`DELETE FROM %s.%s a USING %s.%s b WHERE a.vid < b.vid AND a.id = b.id`,
+		schema, tableName, schema, tableName))
+	if err != nil {
+		fmt.Printf("Could not cleanup duplicates from %s table", tableName)
+	}
+}
+
+func createChangeTriggerForTable(tableName string, schema string) {
+	_, err := db.Exec(fmt.Sprintf(`CREATE OR REPLACE TRIGGER %s_notify_event
+		AFTER INSERT OR UPDATE OR DELETE ON %s.%s
+		FOR EACH ROW EXECUTE PROCEDURE %s.notify_event();`, tableName, schema, tableName, schema))
+	if err != nil {
+		fmt.Printf("Failed to create change trigger for %s table: %s \n", tableName, err)
+	}
+}
+
+func cleanUpTableDuplicatesAndListener(tableName string, schema string) {
+	cleanUpTableDuplicates(tableName, schema)
+	createChangeTriggerForTable(tableName, schema)
+}
+
+func cleanUpDuplicatesAndListener(graphSchema string) {
+	{{range $tableName, $codeInfo := .tableInfos}} cleanUpTableDuplicatesAndListener("{{ $tableName}}", graphSchema)
+	{{end}}
+}
+
+func waitForNotification(l *pq.Listener, graphSchema string) {
+	for {
+		select {
+		case n := <-l.Notify:
+			fmt.Println("Received data from channel [", n.Channel, "] :")
+			// Prepare notification payload for pretty print
+			var prettyJSON bytes.Buffer
+			err := json.Indent(&prettyJSON, []byte(n.Extra), "", "\t")
+			if err != nil {
+				fmt.Println("Error processing JSON: ", err)
+				return
+			}
+			var e DBEvent
+			err = json.Unmarshal(prettyJSON.Bytes(), &e)
+			if err != nil {
+				fmt.Println("ERROR: Failed to process event: ")
+				fmt.Println(prettyJSON.String())
+			}
+			cleanUpTableDuplicatesAndListener(e.Table, graphSchema)
+
+			return
+		case <-time.After(90 * time.Second):
+			fmt.Println("Received no events for 90 seconds, checking connection")
+			go func() {
+				l.Ping()
+			}()
+			return
+		}
+	}
+}
+
+func Start(dsn string, graphSchema string) {
+	var err error
+	db, err = sql.Open("postgres", dsn)
+	if err != nil {
+		panic(err)
+	}
+
+	// https://coussej.github.io/2015/09/15/Listening-to-generic-JSON-notifications-from-PostgreSQL-in-Go/
+	rs, err := db.Exec(fmt.Sprintf(`
+CREATE OR REPLACE FUNCTION %s.notify_event() RETURNS TRIGGER AS $$
+
+    DECLARE 
+        data json;
+        notification json;
+    
+    BEGIN
+        IF (TG_OP = 'DELETE') THEN
+            data = row_to_json(OLD);
+        ELSE
+            data = row_to_json(NEW);
+        END IF;
+
+        notification = json_build_object(
+                          'table',TG_TABLE_NAME,
+                          'action', TG_OP,
+                          'data', data);
+
+        PERFORM pg_notify('events',notification::text);
+
+        RETURN NULL; 
+    END;
+    
+$$ LANGUAGE plpgsql;`, graphSchema))
+	_ = rs
+	if err != nil {
+		log.Fatalf("failed to create event function")
+	}
+
+	cleanUpDuplicatesAndListener(graphSchema)
+
+	reportProblem := func(ev pq.ListenerEventType, err error) {
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+	}
+
+	listener := pq.NewListener(dsn, 10*time.Second, time.Minute, reportProblem)
+	err = listener.Listen("events")
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println("Start monitoring PostgreSQL...")
+	for {
+		waitForNotification(listener, graphSchema)
+	}
+}
+
+{{end}}
